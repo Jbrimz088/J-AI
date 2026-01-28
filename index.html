@@ -8,9 +8,9 @@
     <style>
         body {
             background-color: #000;
-            color: #fff; /* All white text per your request */
+            color: #fff;
             font-family: 'Press Start 2P', cursive;
-            font-size: 12px;
+            font-size: 10px; /* Reduced font size from 12px */
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -18,35 +18,36 @@
         }
 
         header {
-            padding: 25px;
+            padding: 15px;
             text-align: center;
-            border-bottom: 3px solid #fff;
-            letter-spacing: 2px;
+            border-bottom: 2px solid #fff;
+            font-size: 8px; /* Smaller header */
         }
 
         #chat-window {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
 
         .bubble {
-            max-width: 85%;
-            padding: 15px;
-            border: 2px solid #fff;
-            line-height: 1.6;
+            max-width: 90%;
+            padding: 10px;
+            border: 1px solid #fff; /* Thinner borders */
+            line-height: 1.4;
             background: #000;
+            word-wrap: break-word;
         }
 
         .user { align-self: flex-end; border-style: dashed; }
         .ai { align-self: flex-start; border-style: solid; }
 
         .input-box {
-            padding: 20px;
-            border-top: 3px solid #fff;
+            padding: 15px;
+            border-top: 2px solid #fff;
             display: flex;
             background: #000;
         }
@@ -57,92 +58,105 @@
             border: 1px solid #fff;
             color: #fff;
             font-family: 'Press Start 2P', cursive;
-            padding: 12px;
+            padding: 8px;
             outline: none;
-            margin-right: 10px;
+            margin-right: 8px;
+            font-size: 10px;
         }
 
         button {
             background: #fff;
             color: #000;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 12px;
             font-family: 'Press Start 2P', cursive;
             cursor: pointer;
-            font-size: 10px;
+            font-size: 8px;
         }
 
-        button:hover { background: #ccc; }
+        /* Scrollbar styling for a cleaner look */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #fff; }
     </style>
 </head>
 <body>
 
-<header>SECURE AI ENGINE</header>
+<header>SECURE_AI_v1.0_ONLINE</header>
 <div id="chat-window">
-    <div class="bubble ai">SYSTEM INITIALIZED. AWAITING DATA...</div>
+    <div class="bubble ai">SYSTEM INITIALIZED... READY.</div>
 </div>
 
 <div class="input-box">
-    <textarea id="userInput" placeholder="TYPE HERE..."></textarea>
+    <textarea id="userInput" placeholder="TYPE COMMAND..."></textarea>
     <button id="sendBtn">SEND</button>
 </div>
 
 <script>
-    // 1. YOUR API CONFIG
     const API_URL = "https://api-inference.huggingface.co/models/huihui-ai/DeepSeek-V3-abliterated";
-    const HF_TOKEN = "paste_your_hf_token_here"; 
+    const HF_TOKEN = "hf_PASTE_YOUR_TOKEN_HERE"; 
 
-    // 2. WAIT FOR DOM TO LOAD (Fixes the "button does nothing" issue)
     document.addEventListener('DOMContentLoaded', () => {
         const sendBtn = document.getElementById('sendBtn');
         const userInput = document.getElementById('userInput');
         const chatWindow = document.getElementById('chat-window');
 
+        async function query(data) {
+            const response = await fetch(API_URL, {
+                headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
+                method: "POST",
+                body: JSON.stringify(data),
+            });
+            const result = await response.json();
+            
+            // Fix for "Model currently loading" 503 error
+            if (result.error && result.error.includes("loading")) {
+                throw new Error("MODEL_LOADING");
+            }
+            return result;
+        }
+
         async function handleChat() {
             const prompt = userInput.value.trim();
             if (!prompt) return;
 
-            // Add user message
+            // User Message
             const uDiv = document.createElement('div');
             uDiv.className = "bubble user";
             uDiv.textContent = prompt;
             chatWindow.appendChild(uDiv);
             userInput.value = "";
 
-            // Add loading placeholder
+            // AI Placeholder
             const aiDiv = document.createElement('div');
             aiDiv.className = "bubble ai";
             aiDiv.textContent = "THINKING...";
             chatWindow.appendChild(aiDiv);
             chatWindow.scrollTop = chatWindow.scrollHeight;
 
-            try {
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: { 
-                        "Authorization": `Bearer ${HF_TOKEN}`,
-                        "Content-Type": "application/json" 
-                    },
-                    body: JSON.stringify({ inputs: prompt })
-                });
-
-                const data = await response.json();
-                // Update placeholder with actual text
-                aiDiv.textContent = data[0].generated_text || "ERROR: NO RESPONSE";
-            } catch (err) {
-                aiDiv.textContent = "CONNECTION ERROR.";
-                console.error(err);
+            let retries = 5;
+            while(retries > 0) {
+                try {
+                    const data = await query({ inputs: prompt, options: { wait_for_model: true } });
+                    aiDiv.textContent = data[0].generated_text;
+                    break; 
+                } catch (err) {
+                    if (err.message === "MODEL_LOADING") {
+                        aiDiv.textContent = `WAKING MODEL... (${retries}s)`;
+                        await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
+                        retries--;
+                    } else {
+                        aiDiv.textContent = "CONNECTION_FAIL_RETRYING...";
+                        break;
+                    }
+                }
             }
+            if (retries === 0) aiDiv.textContent = "TIMEOUT: MODEL TOO LARGE.";
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        // Click event
         sendBtn.onclick = handleChat;
-
-        // Enter key event
         userInput.onkeypress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat(); } };
     });
 </script>
-
 </body>
 </html>
