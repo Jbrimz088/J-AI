@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek Web Loader</title>
+    <script src="https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; line-height: 1.6; }
+        #output { white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; min-height: 100px; border: 1px solid #ddd; }
+        textarea { width: 100%; height: 100px; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:disabled { background: #ccc; }
+        .status { color: #666; font-size: 0.9em; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>DeepSeek LLM Browser Loader</h2>
+    <p>This model runs <strong>entirely in your browser</strong>. The first run will download the model (~30MB - 200MB depending on the version).</p>
+
+    <textarea id="input" placeholder="Enter your prompt here..."></textarea>
+    <button id="generate-btn">Generate Response</button>
+    <div id="status" class="status">Status: Ready</div>
+
+    <h3>Output:</h3>
+    <div id="output">Response will appear here...</div>
+
+    <script type="module">
+        // Import the pipeline function from the CDN
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+
+        const inputField = document.getElementById('input');
+        const outputField = document.getElementById('output');
+        const btn = document.getElementById('generate-btn');
+        const status = document.getElementById('status');
+
+        let generator = null;
+
+        async function initModel() {
+            if (!generator) {
+                status.textContent = "Status: Loading model (this may take a minute)...";
+                btn.disabled = true;
+                
+                // We use a small, ONNX-compatible DeepSeek or Qwen-based model 
+                // DeepSeek-R1-Distill-Qwen-1.5B is a popular choice for browser testing
+                generator = await pipeline('text-generation', 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX', {
+                    device: 'webgpu', // Use 'wasm' if WebGPU is not available
+                });
+                
+                status.textContent = "Status: Model Loaded!";
+                btn.disabled = false;
+            }
+        }
+
+        btn.addEventListener('click', async () => {
+            const text = inputField.value;
+            if (!text) return;
+
+            await initModel();
+
+            status.textContent = "Status: Thinking...";
+            outputField.textContent = "";
+
+            const results = await generator(text, {
+                max_new_tokens: 100,
+                temperature: 0.7,
+            });
+
+            outputField.textContent = results[0].generated_text;
+            status.textContent = "Status: Done!";
+        });
+    </script>
+</body>
+</html>
