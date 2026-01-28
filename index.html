@@ -3,159 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Seek AI</title>
+    <title>Secure AI - Pixel Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0a0a0a;
-            --text-color: #00ff41; /* Matrix green for pixel vibe */
-            --border-color: #333;
-            --bubble-user: #1a1a1a;
-            --bubble-ai: #002200;
+            --bg-black: #000000;
+            --secure-green: #00FF41; /* The exact bright green from your image */
+            --dark-gray: #121212;
+            --bubble-user: #262626;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg-black);
+            color: var(--secure-green);
             font-family: 'Press Start 2P', cursive;
-            font-size: 10px;
             margin: 0;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        header {
-            padding: 20px;
-            text-align: center;
-            border-bottom: 2px solid var(--border-color);
-            text-transform: uppercase;
+            font-size: 10px;
         }
 
         #chat-container {
             flex: 1;
-            overflow-y: auto;
             padding: 20px;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
         }
 
-        .message {
-            max-width: 80%;
-            padding: 12px;
-            border: 2px solid var(--border-color);
-            line-height: 1.8;
-            word-wrap: break-word;
+        .msg {
+            max-width: 85%;
+            padding: 15px;
+            border-radius: 4px;
+            line-height: 1.6;
         }
 
-        .user-msg {
+        .ai {
+            align-self: flex-start;
+            border: 1px solid var(--secure-green);
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .user {
             align-self: flex-end;
             background-color: var(--bubble-user);
-            border-color: #444;
+            color: white;
+            border: 1px solid #333;
         }
 
-        .ai-msg {
-            align-self: flex-start;
-            background-color: var(--bubble-ai);
-            border-color: var(--text-color);
-        }
-
-        .input-area {
+        .input-box {
+            background: var(--dark-gray);
             padding: 20px;
-            border-top: 2px solid var(--border-color);
             display: flex;
             gap: 10px;
+            border-top: 1px solid #333;
         }
 
         textarea {
             flex: 1;
-            background: #000;
-            border: 2px solid var(--border-color);
-            color: var(--text-color);
+            background: transparent;
+            border: 1px solid var(--secure-green);
+            color: var(--secure-green);
             font-family: 'Press Start 2P', cursive;
             padding: 10px;
-            resize: none;
             outline: none;
         }
 
         button {
-            background: var(--text-color);
-            color: #000;
+            background: var(--secure-green);
+            color: black;
             border: none;
+            padding: 10px 20px;
             font-family: 'Press Start 2P', cursive;
-            padding: 0 15px;
             cursor: pointer;
         }
 
-        button:active {
-            transform: scale(0.95);
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: var(--border-color); }
+        /* Loading animation */
+        .typing::after { content: '...'; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
-<header>
-    Secure Pixel AI // DeepSeek-V3
-</header>
-
 <div id="chat-container">
-    <div class="message ai-msg">SYSTEM READY. AWAITING INPUT...</div>
+    <div class="msg ai">SYSTEM ONLINE. SECURE CONNECTION ESTABLISHED.</div>
 </div>
 
-<div class="input-area">
-    <textarea id="prompt" placeholder="ENTER COMMAND..."></textarea>
-    <button id="send-btn">SEND</button>
+<div class="input-box">
+    <textarea id="userInput" placeholder="TYPE MESSAGE..."></textarea>
+    <button id="sendBtn">SEND</button>
 </div>
 
-<script>
-    const API_URL = "https://api-inference.huggingface.co/models/huihui-ai/DeepSeek-V3-abliterated";
-    const HF_TOKEN = "paste_your_hf_token_here"; // Replace with your token!
+<script type="module">
+    // Using the official SDK to prevent "Failed to Connect" / CORS errors
+    import { InferenceClient } from 'https://cdn.jsdelivr.net/npm/@huggingface/inference@2.6.4/+esm';
 
-    const chatContainer = document.getElementById('chat-container');
-    const promptInput = document.getElementById('prompt');
-    const sendBtn = document.getElementById('send-btn');
+    const client = new InferenceClient("hf_YOUR_TOKEN_HERE");
+    const container = document.getElementById('chat-container');
+    const input = document.getElementById('userInput');
+    const btn = document.getElementById('sendBtn');
 
-    function addMessage(text, isUser) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${isUser ? 'user-msg' : 'ai-msg'}`;
-        msgDiv.textContent = text;
-        chatContainer.appendChild(msgDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    async function queryModel(text) {
-        const response = await fetch(API_URL, {
-            headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
-            method: "POST",
-            body: JSON.stringify({ inputs: text }),
-        });
-        const result = await response.json();
-        return result[0].generated_text || "ERROR: NO RESPONSE";
-    }
-
-    sendBtn.addEventListener('click', async () => {
-        const text = promptInput.value.trim();
+    async function chat() {
+        const text = input.value.trim();
         if (!text) return;
 
-        addMessage(text, true);
-        promptInput.value = '';
-        
-        addMessage("THINKING...", false);
-        
+        // Add User Message
+        const userDiv = document.createElement('div');
+        userDiv.className = 'msg user';
+        userDiv.textContent = text;
+        container.appendChild(userDiv);
+        input.value = '';
+
+        // Add Loading AI Message
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'msg ai typing';
+        aiDiv.textContent = 'THINKING';
+        container.appendChild(aiDiv);
+        container.scrollTop = container.scrollHeight;
+
         try {
-            const aiResponse = await queryModel(text);
-            // Replace "THINKING..." with actual result
-            chatContainer.lastChild.textContent = aiResponse;
-        } catch (err) {
-            chatContainer.lastChild.textContent = "CRITICAL ERROR: CONNECTION FAILED.";
+            // Targeting the abliterated model
+            const response = await client.chatCompletion({
+                model: "huihui-ai/DeepSeek-V3-abliterated",
+                messages: [{ role: "user", content: text }],
+                max_tokens: 500,
+            });
+
+            aiDiv.classList.remove('typing');
+            aiDiv.textContent = response.choices[0].message.content;
+        } catch (error) {
+            aiDiv.classList.remove('typing');
+            aiDiv.textContent = "ERROR: SECURE LINK SEVERED. CHECK API TOKEN.";
+            console.error(error);
         }
-    });
+        container.scrollTop = container.scrollHeight;
+    }
+
+    btn.addEventListener('click', chat);
+    input.addEventListener('keypress', (e) => { if(e.key === 'Enter') chat(); });
 </script>
 
 </body>
